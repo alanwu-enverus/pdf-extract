@@ -3,14 +3,15 @@ import boto3
 from botocore.config import Config
 from langchain_aws import ChatBedrock, BedrockEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
+from langchain_core.output_parsers import PydanticToolsParser
+from langchain_core.output_parsers import PydanticOutputParser
+
+from schema.invoice_schema import *
 
 
 aws_region = os.getenv("AWS_REGION", "us-east-1")
@@ -40,7 +41,7 @@ bedrock_embeddings = BedrockEmbeddings(
 )
 
 loader = PyPDFLoader(
-    file_path="~/Documents/testCodes/lumen/pdf-extract/src/example_data/invoice-3.pdf"
+    file_path="~/Documents/testCodes/lumen/pdf-extract/src/example_data/invoice-4.pdf"
 )
 docs = loader.load()
 
@@ -50,42 +51,46 @@ vectorstore = Chroma.from_documents(documents=splits, embedding=bedrock_embeddin
 
 retriever = vectorstore.as_retriever()
 
- 
-system_prompt = (
-    "You are an assistant for question-answering tasks. "
-    "Use the following pieces of retrieved context to answer "
-    "the question. If you don't know the answer, say that you "
-    "don't know. Use three sentences maximum and keep the "
-    "answer concise."
-    "\n\n"
-    "{context}"
-)
+parser_pydnatic = PydanticToolsParser(tools=[Invoice, LineItem, Party, PartyLegalEntity, PartyTaxScheme, Address, SupplierParty, CustomerParty, TaxSubtotal, TaxCategory, TaxTotal, Price, Item, PaymentMeans])
+invoice_parser = PydanticOutputParser(pydantic_object=Invoice)
 
+
+system_prompt = (  
+        "You are an assistant for extract data"
+        "Use the following pieces of context to convert the provided format "
+        "\n\n"
+        "{context}"
+    )
 prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system_prompt),
-        ("human", "{input}"),
-    ]
+        ("human", "convert to \n\n {input}"),
+    ],
 )
-
 
 question_answer_chain = create_stuff_documents_chain(llm, prompt)
 rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
-questions = [
-    "What is the invoice number?",
-    "What is the total amount?",
-    "What is the due date?",
-    "What is the billing address?",
-    "What is the shipping address?",
-    "What is the invoice date?",
-    "how many items are in the invoice?",
-]
+rag_chain | llm.bind_tools(tools=[Invoice], tool_choice="Invoice") | parser_pydnatic
+format_instructions = invoice_parser.get_format_instructions()
+results = rag_chain.invoke({"input": format_instructions})
+# results = rag_chain.invoke(input={"format_instructions": invoice_parser.get_format_instructions()})
+print(results["answer"])
+
+# questions = [
+#     "What is the invoice number?",
+#     "What is the total amount?",
+#     "What is the due date?",
+#     "What is the billing address?",
+#     "What is the shipping address?",
+#     "What is the invoice date?",
+#     "how many items are in the invoice?",
+# ]
 
 
-for question in questions:
+# for question in questions:
     
-    print(f"\033[95m Question: {question}")
-    results = rag_chain.invoke({"input": question})
-    print('\033[92m' + results['answer'])
+#     print(f"\033[95m Question: {question}")
+#     results = rag_chain.invoke({"input": question})
+#     print('\033[92m' + results['answer'])
 
