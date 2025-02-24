@@ -1,0 +1,29 @@
+[project]
+name = "pdf-extract"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "alan.wu",email = "alan.wu@enverus.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11, <4.0"
+dependencies = [
+    "python-dotenv (>=1.0.1,<2.0.0)",
+    "black (>=25.1.0,<26.0.0)",
+    "isort (>=6.0.0,<7.0.0)",
+    "langchain (>=0.3.19,<0.4.0)",
+    "langchain-openai (>=0.3.6,<0.4.0)",
+    "langgraph (>=0.2.74,<0.3.0)",
+    "langchain-aws (>=0.2.13,<0.3.0)",
+    "langchain-community (>=0.3.18,<0.4.0)",
+    "boto3 (>=1.36.26,<2.0.0)",
+    "pypdf (>=5.3.0,<6.0.0)",
+    "chromadb (>=0.6.3,<0.7.0)"
+]
+
+[tool.poetry]
+package-mode = false
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
