@@ -1,19 +1,21 @@
 
+import re
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from llm_model.bedrock import get_bedrock_embeddings, get_chat_bedrock_llm
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import Chroma
 from langchain_core.output_parsers import PydanticToolsParser
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
+from langchain_core.messages import HumanMessage
 
 from schema.invoice_schema import *
 
 def parser_pdf(file_path: str):
     loader = PyPDFLoader(
-        file_path="~/Documents/testCodes/lumen/pdf-extract/src/example_data/invoice-4.pdf"
+        file_path=file_path,
     )
     docs = loader.load()
     
@@ -26,6 +28,7 @@ def parser_pdf(file_path: str):
     parser_pydnatic = PydanticToolsParser(tools=[Invoice])
     
     llm = get_chat_bedrock_llm()
+    llm.bind_tools(tools=[Invoice], tool_choice="Invoice") 
     
     system_prompt = (  
         "You are an assistant for extract data"
@@ -37,14 +40,17 @@ def parser_pdf(file_path: str):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system_prompt),
-            ("human", "{input}"),
+            ("user", "convert to {doctype}")
         ],
     )
 
     question_answer_chain = create_stuff_documents_chain(llm, prompt)
     rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
-    rag_chain | llm.bind_tools(tools=[Invoice], tool_choice="Invoice") | parser_pydnatic
-    results = rag_chain.invoke({"input": "convert to invoice"})
+    parser = rag_chain 
+    
+    # human_message = HumanMessage( content="convert to invoice")
+    results = parser.invoke({"input": {"doctype":"convert to invoice"}}) | parser_pydnatic
+    # results = parser.invoke({"doctype":"convert to invoice"})
     invoice = results["answer"]
     return invoice
