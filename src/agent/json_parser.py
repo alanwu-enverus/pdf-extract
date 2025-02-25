@@ -1,11 +1,11 @@
 from llm_model.bedrock import get_chat_bedrock_llm
-from schema.invoice_schema import Invoice
+from schema.oi_invoice_schema import Invoice
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_community.document_loaders import PyPDFLoader
 
 def parser_pdf(file_path: str):
-    parser = JsonOutputParser(pydantic_object=Invoice)
+    parser = JsonOutputParser()
     
     prompt = PromptTemplate(
         template="Extract the information as specified.\n{format_instructions}\n{context}\n",
